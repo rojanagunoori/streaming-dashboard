@@ -27,6 +27,12 @@ const config = {
         "app-gradient-dark":
           "linear-gradient(to bottom right, #000000, #111827, #000000)",
       },
+      stroke: {
+        primary: "hsl(var(--primary))",
+      },
+      fill: {
+        primary: "hsl(var(--primary))",
+      },
 
       colors: {
         border: "hsl(var(--border))",
@@ -39,6 +45,8 @@ const config = {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
+        // "primary-foreground": "hsl(var(--primary-foreground))",
+        //"theme-primary": "#fde402",
 
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -69,6 +77,8 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        themePrimary: "#fde402",
+
 
         "bg-black": "#0e0e0e",
         "theme-primary": "#fde402",

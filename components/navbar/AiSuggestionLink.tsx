@@ -19,7 +19,10 @@ const AiSuggestionLink = () => {
         title="Get AI movie/series suggestion"
         aria-label="Get AI movie/series suggestion"
       >
-        <Sparkles className="text-lg text-theme-primary group-hover:animate-pulse transition-colors" />
+    
+
+
+        <Sparkles className="text-lg stroke-[#fde402] text-theme-primary group-hover:animate-pulse transition-colors" />
       </button>
 
       {/* AI Suggestion Modal */}

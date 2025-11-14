@@ -21,6 +21,7 @@ interface MovieData {
   genres?: { id?: number; name: string }[];
   production_companies?: { name: string }[];
   original_language?: string;
+
   // TV-specific fields
   created_by?: { name: string }[];
   episode_run_time?: number[];
@@ -51,7 +52,10 @@ interface AISuggestionResponse {
 class GeminiService {
   private ai: GoogleGenAI;
   private logger = getLogger();
-  private readonly MODEL_NAME = "gemini-2.5-flash";
+  //private readonly MODEL_NAME = "gemini-2.5-flash";
+  //private readonly MODEL_NAME = "gemini-1.5-flash";
+private readonly MODEL_NAME = "gemini-2.0-flash";
+
 
   constructor(apiKey: string) {
     if (!apiKey?.trim()) {
@@ -62,15 +66,21 @@ class GeminiService {
     this.logger.info("GeminiService initialized successfully");
   }
 
-  /**
-   * Creates prompt for generating movie/series facts
-   */
+  // ------------------------------------------
+  // PROMPT GENERATION
+  // ------------------------------------------
+
   private createMoviePrompt(data: MovieData): string {
     const isTV = !!data.name;
     const title = isTV ? data.name : data.title;
+
     const releaseYear = isTV
-      ? data.first_air_date ? new Date(data.first_air_date).getFullYear() : "Unknown"
-      : data.release_date ? new Date(data.release_date).getFullYear() : "Unknown";
+      ? data.first_air_date
+        ? new Date(data.first_air_date).getFullYear()
+        : "Unknown"
+      : data.release_date
+        ? new Date(data.release_date).getFullYear()
+        : "Unknown";
 
     return `You are an expert cinematic researcher with deep knowledge of movies and TV shows.
 
@@ -102,9 +112,6 @@ Return exactly 10 facts as JSON array:
 Return ONLY the JSON array, no other text.`;
   }
 
-  /**
-   * Creates prompt for generating movie/series suggestions
-   */
   private createSuggestionPrompt(): string {
     return `You are a film curator recommending hidden gems and underrated titles.
 
@@ -128,87 +135,105 @@ Return as JSON:
 Return ONLY the JSON object, no other text.`;
   }
 
-  /**
-   * Parses JSON response with fallback
-   */
+  // ------------------------------------------
+  // PARSERS
+  // ------------------------------------------
+
   private parseFactsResponse(responseText: string): string[] {
-    const cleanedText = responseText
+    const cleaned = responseText
       .replace(/^```json\s*/i, "")
       .replace(/```\s*$/i, "")
       .trim();
 
     try {
-      const facts = JSON.parse(cleanedText);
-      if (Array.isArray(facts) && facts.length > 0) {
+      const facts = JSON.parse(cleaned);
+      if (Array.isArray(facts)) {
         return facts
-          .filter((fact) => typeof fact === "string" && fact.trim().length > 10)
+          .filter(f => typeof f === "string" && f.trim().length > 10)
           .slice(0, 10);
       }
     } catch {
-      // Fallback: extract from text
       return responseText
         .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 20 && !line.startsWith("{") && !line.startsWith("["))
-        .map((line) => line.replace(/^\d+\.\s*/, "").replace(/^[-*•]\s*/, "").trim())
+        .map(l => l.trim())
+        .filter(l => l.length > 20 && !l.startsWith("{") && !l.startsWith("["))
+        .map(l => l.replace(/^\d+\.\s*/, "").replace(/^[-*•]\s*/, ""))
         .slice(0, 10);
     }
 
     return [];
   }
 
-  /**
-   * Parses suggestion response
-   */
   private parseSuggestionResponse(responseText: string) {
-    const cleanedText = responseText
+    const cleaned = responseText
       .replace(/^```json\s*/i, "")
       .replace(/```\s*$/i, "")
       .trim();
 
-    const suggestion = JSON.parse(cleanedText);
+    const s = JSON.parse(cleaned);
 
-    if (!suggestion?.title || !suggestion?.year || !suggestion?.type || 
-        !suggestion?.overview || !suggestion?.reason || !suggestion?.searchKeyword) {
+    if (!s?.title || !s?.year || !s?.type || !s?.overview || !s?.reason || !s?.searchKeyword) {
       throw new Error("Invalid suggestion format");
     }
 
-    if (suggestion.type !== "movie" && suggestion.type !== "series") {
+    if (s.type !== "movie" && s.type !== "series") {
       throw new Error("Invalid suggestion type");
     }
 
     return {
-      title: suggestion.title.trim(),
-      year: suggestion.year.toString(),
-      type: suggestion.type,
-      overview: suggestion.overview.trim(),
-      reason: suggestion.reason.trim(),
-      searchKeyword: suggestion.searchKeyword.trim(),
+      title: s.title.trim(),
+      year: s.year.toString(),
+      type: s.type,
+      overview: s.overview.trim(),
+      reason: s.reason.trim(),
+      searchKeyword: s.searchKeyword.trim()
     };
   }
 
-  /**
-   * Handles API errors
-   */
+  // ------------------------------------------
+  // ERROR HANDLING
+  // ------------------------------------------
+
   private handleError(error: Error): string {
     const message = error.message.toLowerCase();
 
     if (message.includes("api key") || message.includes("authentication")) {
       return "AI service authentication failed. Please check configuration.";
     }
+
     if (message.includes("quota") || message.includes("rate limit")) {
       return "AI service rate limit exceeded. Please try again later.";
     }
+
+    if (message.includes("overloaded") || message.includes("unavailable")) {
+      return "The AI service is temporarily overloaded. Please try again shortly.";
+    }
+
     if (message.includes("blocked") || message.includes("safety")) {
-      return "Content was blocked by safety filters. Please try again.";
+      return "Content was blocked by safety filters.";
     }
 
     return error.message;
   }
 
-  /**
-   * Generates AI-powered movie/series suggestion
-   */
+  // ------------------------------------------
+  // RETRY WRAPPER
+  // ------------------------------------------
+
+  private async retry<T>(fn: () => Promise<T>, retries = 2, delayMs = 900): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (retries <= 0) throw err;
+      await new Promise(res => setTimeout(res, delayMs));
+      return this.retry(fn, retries - 1, delayMs * 2);
+    }
+  }
+
+  // ------------------------------------------
+  // API METHODS
+  // ------------------------------------------
+
   async generateSuggestion(): Promise<AISuggestionResponse> {
     try {
       this.logger.info("Generating AI suggestion");
@@ -218,21 +243,14 @@ Return ONLY the JSON object, no other text.`;
         contents: this.createSuggestionPrompt(),
       });
 
-      if (!response?.text) {
-        throw new Error("Empty response from Gemini API");
-      }
+      if (!response?.text) throw new Error("Empty response from Gemini API");
 
       const suggestion = this.parseSuggestionResponse(response.text);
 
-      this.logger.info("Successfully generated AI suggestion", {
-        title: suggestion.title,
-        type: suggestion.type,
-      });
-
       return { suggestion, success: true };
     } catch (error) {
-      const errorMessage = this.handleError(error as Error);
-      this.logger.error("Error generating AI suggestion", { error: errorMessage });
+      const msg = this.handleError(error as Error);
+      this.logger.error("Error generating AI suggestion", { error: msg });
 
       return {
         suggestion: {
@@ -244,79 +262,59 @@ Return ONLY the JSON object, no other text.`;
           searchKeyword: "",
         },
         success: false,
-        error: errorMessage,
+        error: msg,
       };
     }
   }
 
-  /**
-   * Generates AI-powered facts using Gemini API
-   */
   async generateFacts(data: MovieData): Promise<AIFactsResponse> {
     try {
       const title = data.name || data.title;
-
-      if (!title) {
-        throw new Error("Title is required");
-      }
+      if (!title) throw new Error("Title is required");
 
       this.logger.info("Generating AI facts", { title });
 
-      const prompt = this.createMoviePrompt(data);
+      const response = await this.retry(() =>
+        this.ai.models.generateContent({
+          model: this.MODEL_NAME,
+          contents: this.createMoviePrompt(data),
+        })
+      );
 
-      const response = await this.ai.models.generateContent({
-        model: this.MODEL_NAME,
-        contents: prompt,
-      });
-
-      if (!response?.text) {
-        throw new Error("Empty response from Gemini API");
-      }
+      if (!response?.text) throw new Error("Empty response from Gemini API");
 
       const facts = this.parseFactsResponse(response.text);
-
-      if (facts.length === 0) {
-        throw new Error("No valid facts extracted from AI response");
-      }
-
-      this.logger.info("Successfully generated AI facts", {
-        title,
-        factsCount: facts.length,
-      });
+      if (facts.length === 0) throw new Error("No valid facts extracted");
 
       return { facts, success: true };
     } catch (error) {
-      const errorMessage = this.handleError(error as Error);
-      this.logger.error("Error generating AI facts", { error: errorMessage });
+      const msg = this.handleError(error as Error);
+      this.logger.error("Error generating AI facts", { error: msg });
 
-      return {
-        facts: [],
-        success: false,
-        error: errorMessage,
-      };
+      return { facts: [], success: false, error: msg };
     }
   }
-
 }
 
-// Singleton instance
+// ------------------------------------------
+// SINGLETON EXPORT
+// ------------------------------------------
+
 let geminiServiceInstance: GeminiService | null = null;
 
-/**
- * Get or create Gemini service instance
- */
 export function getGeminiService(): GeminiService {
   if (!geminiServiceInstance) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey?.trim()) {
       const logger = getLogger();
-      logger.error("GEMINI_API_KEY environment variable is not configured");
-      throw new Error("GEMINI_API_KEY environment variable is not configured");
+      logger.error("GEMINI_API_KEY is missing");
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     geminiServiceInstance = new GeminiService(apiKey);
   }
+
   return geminiServiceInstance;
 }
 
