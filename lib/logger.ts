@@ -90,7 +90,7 @@ class ProductionLogger implements Logger {
     try {
       // Initialize rotating file stream
       this.initializeRotatingFileStream(filePath);
-      
+
       // Add transport that uses the rotating stream
       this.transports.push(async (entry: LogEntry) => {
         try {
@@ -116,7 +116,7 @@ class ProductionLogger implements Logger {
     try {
       // Dynamic import to handle optional dependency
       const rfs = await import('rotating-file-stream').catch(() => null);
-      
+
       if (!rfs) {
         // Fallback to basic file transport if rotating-file-stream is not available
         console.warn('rotating-file-stream package not found, using basic file transport');
@@ -147,20 +147,27 @@ class ProductionLogger implements Logger {
         throw new Error(`No write permissions for log directory: ${logDir}`);
       }
 
+
+      const intervalEnv = process.env.LOG_ROTATION_INTERVAL || '1d';
+      const allowedIntervals = /^[0-9]+[Mdhms]$/;
+
+      const interval = allowedIntervals.test(intervalEnv) ? (intervalEnv as `${number}M` | `${number}d` | `${number}h` | `${number}m` | `${number}s`) : '1d';
+      const size = (process.env.LOG_MAX_SIZE || '10M') as `${number}M` | `${number}B` | `${number}K` | `${number}G`;
+
       // Configure rotation options
       const rotationOptions = {
         // Size-based rotation (default: 10MB per file)
-        size: process.env.LOG_MAX_SIZE || '10M',
-        
+        // size: process.env.LOG_MAX_SIZE || '10M',
+        size,
         // Time-based rotation (default: daily)
-        interval: process.env.LOG_ROTATION_INTERVAL || '1d',
-        
+        // interval: process.env.LOG_ROTATION_INTERVAL || '1d' as `${number}M` | `${number}d` | `${number}h` | `${number}m` | `${number}s`,
+        interval,
         // Keep max files (default: 14 days for daily rotation)
         maxFiles: parseInt(process.env.LOG_MAX_FILES || '14'),
-        
+
         // Compress old files
         compress: process.env.LOG_COMPRESS !== 'false',
-        
+
         // File path configuration
         path: logDir,
       };
@@ -208,11 +215,11 @@ class ProductionLogger implements Logger {
   private addServiceTransport(serviceUrl: string): void {
     // Configurable timeout (default: 3 seconds)
     const timeoutMs = parseInt(process.env.LOG_SERVICE_TIMEOUT_MS || '3000', 10);
-    
+
     this.transports.push(async (entry: LogEntry) => {
       const controller = new AbortController();
       let timeoutId: NodeJS.Timeout | null = null;
-      
+
       try {
         // Set up timeout that aborts the request
         timeoutId = setTimeout(() => {
@@ -246,7 +253,7 @@ class ProductionLogger implements Logger {
         } else {
           console.error('Failed to send log to service:', error);
         }
-        
+
         // Fallback to console in all error cases
         console.log(JSON.stringify(entry));
       }
@@ -264,7 +271,7 @@ class ProductionLogger implements Logger {
 
   private async writeLog(level: string, message: string, data?: LogData): Promise<void> {
     const entry = this.formatLogEntry(level, message, data);
-    
+
     const logPromises = this.transports.map(async (transport) => {
       try {
         await transport(entry);
@@ -275,7 +282,7 @@ class ProductionLogger implements Logger {
     });
 
     // Track pending logs for flush operation
-    const logPromise = Promise.allSettled(logPromises).then(() => {});
+    const logPromise = Promise.allSettled(logPromises).then(() => { });
     this.pendingLogs.push(logPromise);
 
     // Clean up completed logs to prevent memory leaks

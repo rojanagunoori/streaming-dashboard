@@ -136,7 +136,7 @@ const EpisodeInfo = async ({
 
   // Find the full episode details from seasonData.episodes
   const fullEpisodeDetails = seasonData?.episodes?.find(
-    (ep: EpisodeSummary) =>
+    (ep) =>
       ep.season_number === episodeDetails.season_number &&
       ep.episode_number === episodeDetails.episode_number
   ) ?? {

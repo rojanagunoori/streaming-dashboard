@@ -108,7 +108,8 @@ const TvInfo = ({ id }: TvInfoProps) => {
         vote_average: tvDetail.vote_average,
         vote_count: tvDetail.vote_count,
         popularity: tvDetail.popularity,
-        genre_ids: tvDetail.genres?.map((g) => g.id) || [],
+        genre_ids: tvDetail.genres?.map((g) => g.id).filter((id): id is number => id !== undefined) || [],
+       // genre_ids: tvDetail.genres?.map((g) => g.id) || [],
         origin_country: tvDetail.origin_country,
         original_language: tvDetail.original_language,
         original_name: tvDetail.original_name,
@@ -134,7 +135,8 @@ const TvInfo = ({ id }: TvInfoProps) => {
           {/* Poster */}
           <div className="lg:col-span-1">
             <MediaPoster
-              posterPath={tvDetail.poster_path}
+             posterPath={tvDetail!.poster_path ?? ""}
+            // posterPath={tvDetail.poster_path}
               title={title}
               className="mx-auto lg:mx-0"
             />
@@ -146,12 +148,12 @@ const TvInfo = ({ id }: TvInfoProps) => {
               type="tv"
               title={title}
               year={firstAirYear}
-              rating={tvDetail.vote_average}
-              ratingCount={tvDetail.vote_count}
+              rating={tvDetail!.vote_average}
+              ratingCount={tvDetail!.vote_count}
               seasons={seasonCount}
               episodes={episodeCount}
               genres={seriesData.genreArr}
-              overview={tvDetail.overview}
+              overview={tvDetail!.overview}
               media={mediaForWatchlist!}
             />
           </div>
@@ -167,19 +169,19 @@ const TvInfo = ({ id }: TvInfoProps) => {
                 </h2>
                 <div className="w-full h-px bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
               </>
-
+{tvDetail && (
               <SeasonDisplay
                 key={tvDetail?.id}
                 SeasonCards={seasons}
                 TvDetails={tvDetail}
-              />
+              />)}
             </div>
           </div>
         )}
 
         {/* Did You Know Section - Full Width */}
         <div className="max-w-6xl mx-auto">
-          <DidYouKnowSection title={title} movieData={tvDetail} />
+         {tvDetail && ( <DidYouKnowSection title={title} movieData={tvDetail} />)}
         </div>
       </div>
     </MediaDetailLayout>

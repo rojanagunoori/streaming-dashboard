@@ -103,7 +103,9 @@ const MovieInfo = ({ id }: MovieInfoProps) => {
         vote_average: MovieDetail.vote_average,
         vote_count: MovieDetail.vote_count,
         popularity: MovieDetail.popularity,
-        genre_ids: MovieDetail.genres?.map((g) => g.id) || [],
+       // genre_ids: MovieDetail.genres?.map((g) => g.id) || [],
+       genre_ids: MovieDetail.genres?.map((g) => g.id).filter((id): id is number => id !== undefined) || [],
+
         adult: MovieDetail.adult,
         original_language: MovieDetail.original_language,
         original_title: MovieDetail.original_title,
@@ -129,7 +131,7 @@ const MovieInfo = ({ id }: MovieInfoProps) => {
           {/* Poster */}
           <div className="lg:col-span-1">
             <MediaPoster
-              posterPath={MovieDetail.poster_path}
+              posterPath={MovieDetail?.poster_path ?? ""}
               title={title}
               className="mx-auto lg:mx-0"
             />
@@ -141,11 +143,11 @@ const MovieInfo = ({ id }: MovieInfoProps) => {
               type="movie"
               title={title}
               year={releaseYear}
-              rating={MovieDetail.vote_average}
-              ratingCount={MovieDetail.vote_count}
-              runtime={MovieDetail.runtime}
+              rating={MovieDetail?.vote_average ?? 0}
+              ratingCount={MovieDetail?.vote_count ?? 0}
+              runtime={MovieDetail?.runtime ?? 0}
               genres={movieData.genreArr}
-              overview={MovieDetail.overview}
+              overview={MovieDetail?.overview ?? ""}
               media={mediaForWatchlist!}
             />
           </div>
@@ -157,7 +159,10 @@ const MovieInfo = ({ id }: MovieInfoProps) => {
         {/* Controls and Additional Info Grid */}
         <div className="max-w-6xl mx-auto">
           {/* Did You Know Section - Full Width */}
-          <DidYouKnowSection title={title} movieData={MovieDetail} />
+         {MovieDetail && (
+  <DidYouKnowSection title={title} movieData={MovieDetail} />
+)}
+
         </div>
       </div>
     </MediaDetailLayout>

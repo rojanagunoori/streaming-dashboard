@@ -33,9 +33,9 @@ export default async function EpisodeDetailsPage({
        
         
 
-     <EpisodeNotFound //seriesId={id} 
+     <EpisodeNotFound seriesId={id} 
      seasonId={seasonid} 
-    // episodeId={epid}
+     episodeId={epid}
       />
     
     );

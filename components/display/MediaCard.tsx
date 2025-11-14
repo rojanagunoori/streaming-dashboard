@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { TMDBMovie, TMDBTVShow } from "@/lib/types";
-import WatchlistButton from "@/components/watchlist/WatchListClient";
+import WatchlistButton from "@/components/watchlist/WatchlistButton";
 
 // Type guard function using a reliable discriminant
 function isTVShow(item: TMDBMovie | TMDBTVShow): item is TMDBTVShow {

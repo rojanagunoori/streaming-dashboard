@@ -22,7 +22,7 @@ const PaginationContent = ({
 
   return (
     <GenericPagination
-      currentPage={pageid}
+      currentPage={pageid ?? 1}
       baseUrl={baseUrl}
       maxPage={maxPage}
       queryParams={searchParams}
