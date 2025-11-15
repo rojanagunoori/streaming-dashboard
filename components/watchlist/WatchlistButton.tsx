@@ -109,13 +109,7 @@ const WatchlistButton = ({
     <Button
       size={getSize()}
       variant="ghost"
-     // className={`${getButtonStyles()} ${className}`}
-     className={`p-2 rounded-xl ${
-  inWatchlist
-    ? "text-themePrimary bg-themePrimary/10 hover:bg-themePrimary/20 border border-themePrimary/30"
-    : "text-white hover:bg-white/20 border border-white/30"
-}`}
-
+      className={`${getButtonStyles()} ${className}`}
       onClick={handleToggle}
       aria-pressed={inWatchlist}
       aria-label={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
